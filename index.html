@@ -25,6 +25,7 @@ button{padding:12px;border:none;border-radius:10px;font-weight:bold;cursor:point
 .btn-white{background:#fff;color:#000}
 .btn-red{background:#ff4444;color:#fff}
 .btn-dark{background:#333;color:#fff}
+.btn-gold{background:#FFD700;color:#000;width:100%;margin-top:8px}
 .btn-pack{background:#FFD700;color:#000;padding:8px 10px;font-size:13px}
 .btn-pc{background:#25D366;color:#000;padding:8px 10px;font-size:13px}
 .product{display:flex;justify-content:space-between;align-items:center;background:#2a2a2a;padding:12px;border-radius:12px;margin:8px 0}
@@ -49,6 +50,8 @@ label{font-size:13px;color:#aaa;text-align:left;display:block}
 .qtyBtn{background:#444;color:#fff;padding:4px 10px;border-radius:8px;font-size:16px}
 .installBanner{background:#25D366;color:#000;margin:12px;padding:12px;border-radius:12px;text-align:center;font-weight:bold}
 .installBanner button{background:#000;color:#fff;margin-top:8px;width:100%}
+.backupBanner{background:#FFD700;color:#000;margin:12px;padding:12px;border-radius:12px;text-align:center;font-weight:bold}
+.backupBanner button{background:#000;color:#fff;margin-top:8px;width:100%}
 .catFilter{display:flex;gap:6px;overflow-x:auto;padding:5px 0}
 .catFilter button{background:#2a2a2a;color:#fff;padding:8px 12px;white-space:nowrap;font-size:13px}
 .catFilter button.active{background:#25D366;color:#000}
@@ -61,6 +64,12 @@ label{font-size:13px;color:#aaa;text-align:left;display:block}
 📲 Install Shop POS as App - Works Offline!
 <button onclick="installApp()">Install Now</button>
 <button onclick="document.getElementById('installBanner').classList.add('hidden')" style="background:transparent;color:#000;font-size:12px;padding:4px">Maybe Later</button>
+</div>
+
+<div id="backupBanner" class="backupBanner hidden">
+⚠️ You have not backed up in 7 days! Backup now so you don't lose data if phone spoils.
+<button onclick="showTab('settings');exportBackup()">⬇ Backup Now</button>
+<button onclick="dismissBackupBanner()" style="background:transparent;color:#000;font-size:12px;padding:4px">Remind Me Later</button>
 </div>
 
 <div id="setupScreen" class="setup">
@@ -82,6 +91,8 @@ label{font-size:13px;color:#aaa;text-align:left;display:block}
 <option>Other</option>
 </select>
 <button class="btn-green" onclick="saveShop()">Start Selling →</button>
+<p style="font-size:12px;color:#aaa;margin-top:12px">Already have a backup? <a href="#" onclick="document.getElementById('restoreFileSetup').click();return false;" style="color:#25D366">Restore Backup Here</a></p>
+<input type="file" id="restoreFileSetup" accept=".json" style="display:none" onchange="importBackup(event)">
 </div>
 
 <div id="mainApp" class="hidden">
@@ -168,6 +179,16 @@ label{font-size:13px;color:#aaa;text-align:left;display:block}
 </div>
 
 <div id="tab-settings" class="hidden">
+<div class="card" style="border:2px solid #FFD700">
+<h3>💾 Backup & Restore — IMPORTANT</h3>
+<p style="font-size:13px;color:#aaa;line-height:1.6">Your data is saved only on this phone. If phone spoils or you change phone, you will lose everything unless you backup.<br><b style="color:#FFD700" id="lastBackupText">Last Backup: Never</b></p>
+<button class="btn-gold" onclick="exportBackup()">⬇ Download Backup File</button>
+<button class="btn-green" onclick="shareBackupFile()">📤 Share Backup (WhatsApp / Gmail / Drive)</button>
+<button class="btn-white" style="width:100%;margin-top:8px" onclick="document.getElementById('restoreFile').click()">📂 Restore Backup From File</button>
+<input type="file" id="restoreFile" accept=".json" style="display:none" onchange="importBackup(event)">
+<p style="font-size:12px;color:#aaa;margin-top:8px">How to backup: 1. Tap Download → 2. Share to your WhatsApp / Gmail / Google Drive → 3. Keep it safe. Do this every Sunday.</p>
+<p style="font-size:12px;color:#aaa">To restore on new phone: Install app → Settings → Restore → Select backup file.</p>
+</div>
 <div class="card"><h3>📲 Download App - Android & iPhone</h3>
 <button class="btn-green" id="installBtn" onclick="installApp()">📲 Install App Now</button>
 <div id="iosHelp" style="display:none;background:#2a2a2a;padding:12px;border-radius:10px;margin-top:10px;font-size:13px;line-height:1.7;text-align:left"><b>🍎 iPhone (Safari):</b><br>1. Open in Safari<br>2. Tap Share ⬆️<br>3. Add to Home Screen<br>4. Add</div>
@@ -222,11 +243,11 @@ let shop = JSON.parse(localStorage.getItem('shoppos_shop')||'null');
 let lastReceipt = null;
 let editingIndex = -1;
 let activeCat = 'All';
-function hardReset(){ if(confirm('Reset app? Clear all data?')){ localStorage.clear(); location.reload(); } }
+function hardReset(){ if(confirm('Reset app? Clear all data? This cannot be undone unless you have a backup!')){ localStorage.clear(); location.reload(); } }
 function totalPieces(p){ return (p.packs||0)*(p.packSize||1) + (p.pieces||0); }
 function formatStock(p){ if(p.packSize<=1) return totalPieces(p)+' '+p.unit+'(s) in stock'; return (p.packs||0)+' Pack(s) + '+(p.pieces||0)+' '+p.unit+'(s) = '+totalPieces(p)+' total'; }
 function saveAll(){ localStorage.setItem('shoppos_products',JSON.stringify(products)); localStorage.setItem('shoppos_sales',JSON.stringify(sales)); localStorage.setItem('shoppos_debts',JSON.stringify(debts)); if(shop) localStorage.setItem('shoppos_shop',JSON.stringify(shop)); }
-function init(){ document.getElementById('receiptModal').classList.add('hidden'); document.getElementById('scanModal').classList.add('hidden'); if(shop){ document.getElementById('setupScreen').classList.add('hidden'); document.getElementById('mainApp').classList.remove('hidden'); document.getElementById('shopNameDisplay').innerText = shop.name+' 🛒'; document.getElementById('editShopName').value=shop.name; document.getElementById('editShopPhone').value=shop.phone||''; } else { document.getElementById('setupScreen').classList.remove('hidden'); document.getElementById('mainApp').classList.add('hidden'); } renderAll(); checkIfInstalled(); }
+function init(){ document.getElementById('receiptModal').classList.add('hidden'); document.getElementById('scanModal').classList.add('hidden'); if(shop){ document.getElementById('setupScreen').classList.add('hidden'); document.getElementById('mainApp').classList.remove('hidden'); document.getElementById('shopNameDisplay').innerText = shop.name+' 🛒'; document.getElementById('editShopName').value=shop.name; document.getElementById('editShopPhone').value=shop.phone||''; } else { document.getElementById('setupScreen').classList.remove('hidden'); document.getElementById('mainApp').classList.add('hidden'); } renderAll(); checkIfInstalled(); checkBackupReminder(); updateBackupText(); }
 function saveShop(){ let n=document.getElementById('shopNameInput').value.trim(); if(!n){alert('Enter shop name');return;} shop={name:n, phone:document.getElementById('shopPhoneInput').value.trim(), type:document.getElementById('shopTypeInput').value}; saveAll(); init(); }
 function updateShop(){ shop.name=document.getElementById('editShopName').value.trim()||shop.name; shop.phone=document.getElementById('editShopPhone').value.trim(); saveAll(); init(); alert('Saved!'); }
 function showTab(t){ ['sell','products','sales','debt','settings'].forEach(x=>{ document.getElementById('tab-'+x).classList.toggle('hidden',x!==t); document.getElementById('t-'+x).classList.toggle('active',x===t); }); }
@@ -285,6 +306,97 @@ function renderDebts(){ let total=debts.filter(d=>!d.paid).reduce((a,d)=>a+d.amo
 function markPaid(i){ debts[i].paid=true; saveAll(); renderAll(); }
 function deleteDebt(i){ debts.splice(i,1); saveAll(); renderAll(); }
 function renderAll(){ renderProducts(); renderCart(); renderSales(); renderDebts(); }
+
+// --- BACKUP & RESTORE ---
+function getBackupData(){
+  return { app:'Shop POS', version:2, backupDate:new Date().toISOString(), shop:shop, products:products, sales:sales, debts:debts };
+}
+function markBackupDone(){
+  let now = new Date().toISOString();
+  localStorage.setItem('shoppos_last_backup', now);
+  localStorage.setItem('shoppos_backup_dismissed', '');
+  updateBackupText();
+  checkBackupReminder();
+}
+function updateBackupText(){
+  let last = localStorage.getItem('shoppos_last_backup');
+  let el = document.getElementById('lastBackupText');
+  if(!el) return;
+  if(!last){ el.innerText = 'Last Backup: Never - Backup now!'; el.style.color='#ff4444'; }
+  else { let d = new Date(last); el.innerText = 'Last Backup: ' + d.toLocaleString(); el.style.color='#25D366'; }
+}
+function checkBackupReminder(){
+  let last = localStorage.getItem('shoppos_last_backup');
+  let dismissed = localStorage.getItem('shoppos_backup_dismissed');
+  let banner = document.getElementById('backupBanner');
+  if(!banner) return;
+  if(!shop) { banner.classList.add('hidden'); return; }
+  if(dismissed && (Date.now() - parseInt(dismissed)) < 24*60*60*1000){ banner.classList.add('hidden'); return; }
+  if(!last){ banner.classList.remove('hidden'); return; }
+  let days = (Date.now() - new Date(last).getTime()) / (1000*60*60*24);
+  if(days >= 7) banner.classList.remove('hidden'); else banner.classList.add('hidden');
+}
+function dismissBackupBanner(){
+  localStorage.setItem('shoppos_backup_dismissed', Date.now().toString());
+  document.getElementById('backupBanner').classList.add('hidden');
+}
+function exportBackup(){
+  let data = getBackupData();
+  let blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+  let url = URL.createObjectURL(blob);
+  let a = document.createElement('a');
+  let dateStr = new Date().toISOString().slice(0,10);
+  a.href = url;
+  a.download = 'shop-pos-backup-' + dateStr + '.json';
+  a.click();
+  URL.revokeObjectURL(url);
+  markBackupDone();
+  alert('✅ Backup downloaded!\n\nNow share it to your WhatsApp / Gmail / Google Drive so it is safe if phone spoils.\n\nFile: shop-pos-backup-' + dateStr + '.json');
+}
+async function shareBackupFile(){
+  let data = getBackupData();
+  let dateStr = new Date().toISOString().slice(0,10);
+  let fileName = 'shop-pos-backup-' + dateStr + '.json';
+  let blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+  try{
+    let file = new File([blob], fileName, {type:'application/json'});
+    if(navigator.canShare && navigator.canShare({files:[file]})){
+      await navigator.share({ files:[file], title:'Shop POS Backup', text:'My Shop POS Backup - ' + dateStr + ' - Keep this safe!' });
+      markBackupDone();
+      return;
+    }
+  }catch(e){}
+  // Fallback: download + tell user to share manually
+  exportBackup();
+}
+function importBackup(event){
+  let file = event.target.files[0];
+  if(!file) return;
+  let reader = new FileReader();
+  reader.onload = function(e){
+    try{
+      let data = JSON.parse(e.target.result);
+      // Support both new format and old plain format
+      let newProducts = data.products || data.shoppos_products || [];
+      let newSales = data.sales || data.shoppos_sales || [];
+      let newDebts = data.debts || data.shoppos_debts || [];
+      let newShop = data.shop || data.shoppos_shop || null;
+      if(!newProducts && !newShop && !newSales.length && !newDebts.length){
+        alert('This file does not look like a Shop POS backup.'); return;
+      }
+      if(!confirm('Restore this backup?\n\nShop: ' + (newShop?newShop.name:'Unknown') + '\nItems: ' + newProducts.length + '\nSales: ' + newSales.length + '\nDebts: ' + newDebts.length + '\n\nThis will REPLACE your current data. Make sure you exported your current data first if you need it.')){
+        event.target.value=''; return;
+      }
+      products = newProducts; sales = newSales; debts = newDebts; shop = newShop;
+      saveAll();
+      localStorage.setItem('shoppos_last_backup', new Date().toISOString());
+      event.target.value='';
+      alert('✅ Backup restored! ' + products.length + ' items, ' + sales.length + ' sales restored.');
+      init();
+    }catch(err){ alert('Backup file is damaged or wrong format: ' + err); }
+  };
+  reader.readAsText(file);
+}
 
 // --- BARCODE SCANNER ---
 let html5QrCode = null;
