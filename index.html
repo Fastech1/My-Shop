@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Shop POS</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#0f0f0f">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Shop POS">
+<link rel="apple-touch-icon" href="/icon-192.png">
+<link rel="icon" type="image/png" href="/icon-192.png">
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<style>
+*{box-sizing:border-box}
+body{font-family:sans-serif;background:#0f0f0f;color:#fff;margin:0;padding-bottom:90px}
+.header{background:#111;padding:15px;text-align:center;position:sticky;top:0;z-index:10;border-bottom:1px solid #333}
+.header h1{margin:0;font-size:22px}
+.header p{margin:4px;color:#25D366;font-weight:bold}
+.card{background:#1c1c1c;margin:12px;padding:14px;border-radius:14px}
+input,select{width:100%;padding:12px;margin:6px 0;border-radius:10px;border:none;font-size:16px;background:#2a2a2a;color:#fff}
+button{padding:12px;border:none;border-radius:10px;font-weight:bold;cursor:pointer;font-size:15px}
+.btn-green{background:#25D366;color:#000;width:100%;margin-top:8px}
+.btn-white{background:#fff;color:#000}
+.btn-red{background:#ff4444;color:#fff}
+.btn-dark{background:#333;color:#fff}
+.btn-pack{background:#FFD700;color:#000;padding:8px 10px;font-size:13px}
+.btn-pc{background:#25D366;color:#000;padding:8px 10px;font-size:13px}
+.product{display:flex;justify-content:space-between;align-items:center;background:#2a2a2a;padding:12px;border-radius:12px;margin:8px 0}
+.product b{font-size:16px}
+.product small{color:#aaa}
+.cart-item{padding:10px 0;border-bottom:1px solid #333}
+.tabs{position:fixed;bottom:0;left:0;right:0;background:#111;display:flex;border-top:1px solid #333}
+.tabs button{flex:1;background:none;color:#aaa;padding:14px 0;font-size:13px}
+.tabs button.active{color:#25D366;border-top:3px solid #25D366}
+.badge{background:#ff4444;color:#fff;padding:2px 7px;border-radius:20px;font-size:12px}
+.catBadge{background:#333;color:#25D366;padding:2px 8px;border-radius:20px;font-size:11px}
+.barcodeBadge{background:#FFD700;color:#000;padding:2px 8px;border-radius:20px;font-size:11px}
+.total{font-size:22px;font-weight:bold;text-align:right}
+.setup{max-width:420px;margin:40px auto;padding:20px;text-align:center}
+.modal{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;z-index:99;padding:15px;overflow-y:auto}
+.modal-box{background:#fff;color:#000;width:100%;max-width:380px;border-radius:14px;padding:16px;text-align:center;margin:auto}
+.row{display:flex;gap:8px}
+.row input{flex:1}
+label{font-size:13px;color:#aaa;text-align:left;display:block}
+.editBox{background:#333;padding:10px;border-radius:10px;margin-top:8px}
+.editBox input{background:#444}
+.qtyBtn{background:#444;color:#fff;padding:4px 10px;border-radius:8px;font-size:16px}
+.installBanner{background:#25D366;color:#000;margin:12px;padding:12px;border-radius:12px;text-align:center;font-weight:bold}
+.installBanner button{background:#000;color:#fff;margin-top:8px;width:100%}
+.catFilter{display:flex;gap:6px;overflow-x:auto;padding:5px 0}
+.catFilter button{background:#2a2a2a;color:#fff;padding:8px 12px;white-space:nowrap;font-size:13px}
+.catFilter button.active{background:#25D366;color:#000}
+.hidden{display:none !important}
+</style>
+</head>
+<body>
+
+<div id="installBanner" class="installBanner hidden">
+📲 Install Shop POS as App - Works Offline!
+<button onclick="installApp()">Install Now</button>
+<button onclick="document.getElementById('installBanner').classList.add('hidden')" style="background:transparent;color:#000;font-size:12px;padding:4px">Maybe Later</button>
+</div>
+
+<div id="setupScreen" class="setup">
+<div style="font-size:60px">🛒</div>
+<h1>Shop POS</h1>
+<p>For any shop - Provisions, Drinks, Cosmetics, Electronics, Anything.</p>
+<input id="shopNameInput" placeholder="Enter shop name e.g. Chuks Provision Store">
+<input id="shopPhoneInput" placeholder="Shop phone number (optional)">
+<select id="shopTypeInput">
+<option>General Store / Provision</option>
+<option>Drink Shop</option>
+<option>Pharmacy</option>
+<option>Cosmetics / Beauty</option>
+<option>Phone Accessories</option>
+<option>Boutique / Fashion</option>
+<option>Supermarket</option>
+<option>Electronics</option>
+<option>Food / Restaurant</option>
+<option>Other</option>
+</select>
+<button class="btn-green" onclick="saveShop()">Start Selling →</button>
+</div>
+
+<div id="mainApp" class="hidden">
+<div class="header">
+<h1 id="shopNameDisplay">My Shop 🛒</h1>
+<p id="todayTotal">Today: ₦0</p>
+</div>
+
+<div id="tab-sell">
+<div class="card">
+<h3>🧾 Sell Items</h3>
+<button class="btn-green" onclick="openScanner('sell')">📷 Scan Barcode to Sell</button>
+<input id="search" placeholder="Search item..." oninput="renderProducts()">
+<div class="catFilter" id="catFilter"></div>
+<div id="productList"></div>
+</div>
+<div class="card">
+<h3>🛒 Cart</h3>
+<div id="cartList"><p style="color:#aaa">Cart is empty.</p></div>
+<div class="total" id="cartTotal">Total: ₦0</div>
+<select id="payMethod"><option>Cash</option><option>Transfer</option><option>POS / Card</option><option>Credit (Customer owes)</option></select>
+<input id="customerName" placeholder="Customer name">
+<button class="btn-green" onclick="checkout()">Checkout ✅</button>
+<button class="btn-white" style="width:100%;margin-top:8px" onclick="clearCart()">Clear Cart</button>
+</div>
+</div>
+
+<div id="tab-products" class="hidden">
+<div class="card">
+<h3>➕ Add New Item</h3>
+<p style="font-size:12px;color:#aaa">Add any item you sell in your shop. Scan barcode to save it.</p>
+<input id="newName" placeholder="Item name e.g. Indomie Chicken 70g">
+<div class="row">
+<input id="newBarcode" placeholder="Barcode (optional) e.g. 123456789">
+<button class="btn-white" style="width:auto;white-space:nowrap" onclick="openScanner('add')">📷 Scan</button>
+</div>
+<div class="row">
+<select id="newCategory">
+<option>Provision</option>
+<option>Drinks</option>
+<option>Food</option>
+<option>Cosmetics</option>
+<option>Electronics</option>
+<option>Phone Accessories</option>
+<option>Fashion</option>
+<option>Pharmacy</option>
+<option>Household</option>
+<option>Other</option>
+</select>
+<select id="newUnit">
+<option value="Pc">Piece (Pc)</option>
+<option value="Bottle">Bottle</option>
+<option value="Bag">Bag</option>
+<option value="Carton">Carton</option>
+<option value="Pair">Pair</option>
+<option value="Pack">Pack</option>
+<option value="Sachet">Sachet</option>
+<option value="Can">Can</option>
+</select>
+</div>
+<input id="newPrice" type="number" placeholder="Price per 1 Pc / Bottle / Bag e.g. 800">
+<label>How many pieces in 1 Pack / Carton? (Put 1 if you sell only singles)</label>
+<input id="newPackSize" type="number" placeholder="e.g. 24, 40, 1">
+<div class="row">
+<input id="newPacks" type="number" placeholder="Packs / Cartons e.g. 2">
+<input id="newPieces" type="number" placeholder="Singles e.g. 5">
+</div>
+<button class="btn-green" onclick="addProduct()">Add Item</button>
+</div>
+<div class="card">
+<h3>📦 All Items</h3>
+<div id="manageList"></div>
+</div>
+</div>
+
+<div id="tab-sales" class="hidden">
+<div class="card"><h3>📊 Today's Sales</h3><p id="salesSummary"></p><button class="btn-white" onclick="shareReport()">Share Report on WhatsApp</button></div>
+<div class="card"><h3>🧾 History</h3><div id="salesList"></div><button class="btn-red" style="width:100%;margin-top:10px" onclick="clearSales()">Clear History</button></div>
+</div>
+
+<div id="tab-debt" class="hidden">
+<div class="card"><h3>📒 Debt Book</h3><input id="debtName" placeholder="Customer name"><input id="debtAmount" type="number" placeholder="Amount owed"><input id="debtNote" placeholder="What they bought"><button class="btn-green" onclick="addDebt()">Add Debt</button></div>
+<div class="card"><h3>People Owing</h3><div id="debtList"></div><p id="totalDebt"></p></div>
+</div>
+
+<div id="tab-settings" class="hidden">
+<div class="card"><h3>📲 Download App - Android & iPhone</h3>
+<button class="btn-green" id="installBtn" onclick="installApp()">📲 Install App Now</button>
+<div id="iosHelp" style="display:none;background:#2a2a2a;padding:12px;border-radius:10px;margin-top:10px;font-size:13px;line-height:1.7;text-align:left"><b>🍎 iPhone (Safari):</b><br>1. Open in Safari<br>2. Tap Share ⬆️<br>3. Add to Home Screen<br>4. Add</div>
+<div id="androidHelp" style="display:none;background:#2a2a2a;padding:12px;border-radius:10px;margin-top:10px;font-size:13px;line-height:1.7;text-align:left"><b>🤖 Android (Chrome):</b><br>1. Tap ⋮<br>2. Add to Home screen<br>3. Install</div>
+<button class="btn-white" style="width:100%;margin-top:8px" onclick="showInstallHelp()">How to Install?</button>
+</div>
+<div class="card"><h3>⚙️ Shop Settings</h3><input id="editShopName" placeholder="Shop name"><input id="editShopPhone" placeholder="Shop phone"><button class="btn-green" onclick="updateShop()">Save Shop Info</button></div>
+<div class="card"><h3>🧹 Reset</h3><button class="btn-red" style="width:100%" onclick="hardReset()">Reset App - Clear All Data</button></div>
+</div>
+
+<div class="tabs">
+<button id="t-sell" class="active" onclick="showTab('sell')">🧾<br>Sell</button>
+<button id="t-products" onclick="showTab('products')">🛒<br>Items</button>
+<button id="t-sales" onclick="showTab('sales')">📊<br>Sales</button>
+<button id="t-debt" onclick="showTab('debt')">📒<br>Debt</button>
+<button id="t-settings" onclick="showTab('settings')">⚙️<br>Settings</button>
+</div>
+</div>
+
+<div id="receiptModal" class="modal hidden" onclick="if(event.target===this) closeReceipt()">
+<div class="modal-box">
+<div style="text-align:right"><button onclick="closeReceipt()" style="background:#eee;color:#000;padding:6px 12px;border-radius:20px">✕ Close</button></div>
+<h3 style="margin:5px 0">🧾 Receipt</h3>
+<p style="font-size:12px;color:#666" id="receiptTime"></p>
+<div id="receiptHtml" style="background:#fff;color:#000;text-align:left;padding:14px;border-radius:10px;font-family:monospace;font-size:13px;line-height:1.6;border:1px solid #ddd;white-space:pre-line"></div>
+<canvas id="receiptCanvas" width="340" height="520" style="display:none"></canvas>
+<div class="row" style="margin-top:10px">
+<button class="btn-green" onclick="downloadReceipt()">⬇ Download Receipt</button>
+<button class="btn-white" onclick="shareReceiptImage()">Share WhatsApp</button>
+</div>
+<button class="btn-dark" style="width:100%;margin-top:8px" onclick="closeReceipt()">Close</button>
+</div>
+</div>
+
+<div id="scanModal" class="modal hidden">
+<div class="modal-box">
+<div style="text-align:right"><button onclick="closeScanner()" style="background:#eee;color:#000;padding:6px 12px;border-radius:20px">✕ Close</button></div>
+<h3>📷 Scan Barcode</h3>
+<p id="scanHint" style="font-size:13px;color:#666">Point camera at barcode</p>
+<div id="reader" style="width:100%;border-radius:10px;overflow:hidden"></div>
+<p style="font-size:12px;color:#888">Tip: Hold steady, good light. Allow camera permission.</p>
+<button class="btn-dark" style="width:100%" onclick="closeScanner()">Close Scanner</button>
+</div>
+</div>
+
+<script>
+let products = JSON.parse(localStorage.getItem('shoppos_products')||'[]');
+let sales = JSON.parse(localStorage.getItem('shoppos_sales')||'[]');
+let debts = JSON.parse(localStorage.getItem('shoppos_debts')||'[]');
+let cart = [];
+let shop = JSON.parse(localStorage.getItem('shoppos_shop')||'null');
+let lastReceipt = null;
+let editingIndex = -1;
+let activeCat = 'All';
+function hardReset(){ if(confirm('Reset app? Clear all data?')){ localStorage.clear(); location.reload(); } }
+function totalPieces(p){ return (p.packs||0)*(p.packSize||1) + (p.pieces||0); }
+function formatStock(p){ if(p.packSize<=1) return totalPieces(p)+' '+p.unit+'(s) in stock'; return (p.packs||0)+' Pack(s) + '+(p.pieces||0)+' '+p.unit+'(s) = '+totalPieces(p)+' total'; }
+function saveAll(){ localStorage.setItem('shoppos_products',JSON.stringify(products)); localStorage.setItem('shoppos_sales',JSON.stringify(sales)); localStorage.setItem('shoppos_debts',JSON.stringify(debts)); if(shop) localStorage.setItem('shoppos_shop',JSON.stringify(shop)); }
+function init(){ document.getElementById('receiptModal').classList.add('hidden'); document.getElementById('scanModal').classList.add('hidden'); if(shop){ document.getElementById('setupScreen').classList.add('hidden'); document.getElementById('mainApp').classList.remove('hidden'); document.getElementById('shopNameDisplay').innerText = shop.name+' 🛒'; document.getElementById('editShopName').value=shop.name; document.getElementById('editShopPhone').value=shop.phone||''; } else { document.getElementById('setupScreen').classList.remove('hidden'); document.getElementById('mainApp').classList.add('hidden'); } renderAll(); checkIfInstalled(); }
+function saveShop(){ let n=document.getElementById('shopNameInput').value.trim(); if(!n){alert('Enter shop name');return;} shop={name:n, phone:document.getElementById('shopPhoneInput').value.trim(), type:document.getElementById('shopTypeInput').value}; saveAll(); init(); }
+function updateShop(){ shop.name=document.getElementById('editShopName').value.trim()||shop.name; shop.phone=document.getElementById('editShopPhone').value.trim(); saveAll(); init(); alert('Saved!'); }
+function showTab(t){ ['sell','products','sales','debt','settings'].forEach(x=>{ document.getElementById('tab-'+x).classList.toggle('hidden',x!==t); document.getElementById('t-'+x).classList.toggle('active',x===t); }); }
+function getCategories(){ return ['All', ...new Set(products.map(p=>p.category||'Other'))]; }
+function renderCatFilter(){ let html=''; getCategories().forEach(c=>{ html+='<button class="'+(activeCat===c?'active':'')+'" onclick="setCat(\''+c+'\')">'+c+'</button>'; }); document.getElementById('catFilter').innerHTML=html; }
+function setCat(c){ activeCat=c; renderProducts(); }
+function renderProducts(){
+  renderCatFilter();
+  let q=document.getElementById('search').value.toLowerCase();
+  let html='';
+  products.forEach((p,i)=>{
+    if(q && !p.name.toLowerCase().includes(q) && !(p.barcode && p.barcode.includes(q))) return;
+    if(activeCat!=='All' && p.category!==activeCat) return;
+    let low = totalPieces(p)<=3 ? '<span class="badge">LOW</span>' : '';
+    let packPrice = p.price * p.packSize;
+    let packBtn = p.packSize>1 ? '<button class="btn-pack" onclick="addToCartPack('+i+')">+ 1 Pack 📦</button>' : '';
+    let bc = p.barcode ? '<span class="barcodeBadge">📷 '+p.barcode+'</span>' : '';
+    html+='<div class="product"><div style="flex:1"><span class="catBadge">'+p.category+'</span> '+bc+'<br><b>'+p.name+'</b><br><small>₦'+p.price+' / '+p.unit+' '+(p.packSize>1?'• 1 Pack ('+p.packSize+') = ₦'+packPrice.toLocaleString():'')+'<br>'+formatStock(p)+' '+low+'</small></div><div style="display:flex;flex-direction:column;gap:6px">'+packBtn+'<button class="btn-pc" onclick="addToCartPiece('+i+')">+ 1 '+p.unit+'</button></div></div>';
+  });
+  document.getElementById('productList').innerHTML=html||'<p>No items yet. Go to Items tab → Add your first item or scan barcode.</p>';
+  let m='';
+  products.forEach((p,i)=>{
+    m+='<div class="product"><div style="flex:1"><span class="catBadge">'+p.category+'</span>'+(p.barcode?' <span class="barcodeBadge">📷 '+p.barcode+'</span>':'')+'<br><b>'+p.name+'</b><br><small>₦'+p.price+' / '+p.unit+' • Pack: '+p.packSize+'<br>'+formatStock(p)+'</small>';
+    if(editingIndex===i){ m+='<div class="editBox"><input id="editName'+i+'" value="'+p.name+'"><input id="editBarcode'+i+'" value="'+(p.barcode||'')+'" placeholder="Barcode"><input id="editPrice'+i+'" type="number" value="'+p.price+'"><input id="editPackSize'+i+'" type="number" value="'+p.packSize+'"><div class="row"><input id="editPacks'+i+'" type="number" value="'+p.packs+'"><input id="editPieces'+i+'" type="number" value="'+p.pieces+'"></div><button class="btn-green" onclick="saveEdit('+i+')">Save</button> <button class="btn-dark" onclick="cancelEdit()">Cancel</button></div>'; }
+    m+='</div><div><button class="btn-dark" onclick="startEdit('+i+')">✏️ Edit</button> <button class="btn-red" onclick="deleteProduct('+i+')">Delete</button></div></div>';
+  });
+  document.getElementById('manageList').innerHTML=m;
+}
+function startEdit(i){ editingIndex=i; renderProducts(); }
+function cancelEdit(){ editingIndex=-1; renderProducts(); }
+function saveEdit(i){ let p=products[i]; p.name=document.getElementById('editName'+i).value.trim()||p.name; p.barcode=document.getElementById('editBarcode'+i).value.trim(); p.price=parseInt(document.getElementById('editPrice'+i).value)||p.price; p.packSize=parseInt(document.getElementById('editPackSize'+i).value)||p.packSize; p.packs=parseInt(document.getElementById('editPacks'+i).value)||0; p.pieces=parseInt(document.getElementById('editPieces'+i).value)||0; if(p.pieces>=p.packSize && p.packSize>1){ p.packs+=Math.floor(p.pieces/p.packSize); p.pieces=p.pieces%p.packSize; } editingIndex=-1; saveAll(); renderAll(); alert('Updated!'); }
+function addProduct(){ let n=document.getElementById('newName').value.trim(); let pr=parseInt(document.getElementById('newPrice').value); let packSize=parseInt(document.getElementById('newPackSize').value)||1; let packs=parseInt(document.getElementById('newPacks').value)||0; let pieces=parseInt(document.getElementById('newPieces').value)||0; let cat=document.getElementById('newCategory').value; let unit=document.getElementById('newUnit').value; let barcode=document.getElementById('newBarcode').value.trim(); if(!n||!pr){alert('Enter name and price');return;} if(pieces>=packSize && packSize>1){ packs+=Math.floor(pieces/packSize); pieces=pieces%packSize; } products.push({name:n, price:pr, packSize:packSize, packs:packs, pieces:pieces, category:cat, unit:unit, barcode:barcode}); saveAll(); renderAll(); ['newName','newPrice','newPackSize','newPacks','newPieces','newBarcode'].forEach(id=>document.getElementById(id).value=''); alert('Item added!'); }
+function deleteProduct(i){ if(confirm('Delete '+products[i].name+'?')){ products.splice(i,1); saveAll(); renderAll(); } }
+function getCartItem(i){ let f=cart.find(c=>c.index===i); if(!f){ f={index:i, packs:0, pieces:0}; cart.push(f); } return f; }
+function addToCartPack(i){ let p=products[i]; let inCart=cart.find(c=>c.index===i); let used=inCart?(inCart.packs*p.packSize+inCart.pieces):0; if(totalPieces(p)-used < p.packSize){ alert('Not enough stock! Only '+(totalPieces(p)-used)+' left.'); return; } let f=getCartItem(i); f.packs++; renderCart(); }
+function addToCartPiece(i){ let p=products[i]; let inCart=cart.find(c=>c.index===i); let used=inCart?(inCart.packs*p.packSize+inCart.pieces):0; if(totalPieces(p)-used<1){ alert('Out of stock!'); return; } let f=getCartItem(i); f.pieces++; if(f.pieces>=p.packSize && p.packSize>1){ f.packs+=Math.floor(f.pieces/p.packSize); f.pieces=f.pieces%p.packSize; } renderCart(); }
+function cartTotalPieces(c){ let p=products[c.index]; return c.packs*p.packSize + c.pieces; }
+function cartSubtotal(c){ return cartTotalPieces(c)*products[c.index].price; }
+function renderCart(){ let html=''; let total=0; cart.forEach((c,ci)=>{ if(cartTotalPieces(c)===0) return; let p=products[c.index]; let sub=cartSubtotal(c); total+=sub; let desc=''; if(c.packs>0) desc+=c.packs+' Pack(s)'; if(c.pieces>0) desc+=(desc?' + ':'')+c.pieces+' '+p.unit; html+='<div class="cart-item"><div style="display:flex;justify-content:space-between"><span><b>'+p.name+'</b><br><small>'+desc+' • ₦'+p.price+'/'+p.unit+'</small></span><span><b>₦'+sub.toLocaleString()+'</b></span></div><div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap"><button class="qtyBtn" onclick="changePack('+ci+',1)">+ Pack</button><button class="qtyBtn" onclick="changePack('+ci+',-1)">- Pack</button><button class="qtyBtn" onclick="changePiece('+ci+',1)">+ '+p.unit+'</button><button class="qtyBtn" onclick="changePiece('+ci+',-1)">- '+p.unit+'</button><button class="qtyBtn" style="background:#ff4444" onclick="removeFromCart('+ci+')">✕</button></div></div>'; }); document.getElementById('cartList').innerHTML=html||'<p style="color:#aaa">Cart is empty.</p>'; document.getElementById('cartTotal').innerText='Total: ₦'+total.toLocaleString(); }
+function changePack(ci,d){ let c=cart[ci]; let p=products[c.index]; if(d>0){ if(totalPieces(p)-cartTotalPieces(c) < p.packSize){ alert('Not enough stock'); return; } c.packs++; } else { if(c.packs>0) c.packs--; } if(cartTotalPieces(c)===0) cart.splice(ci,1); renderCart(); }
+function changePiece(ci,d){ let c=cart[ci]; let p=products[c.index]; if(d>0){ if(totalPieces(p)-cartTotalPieces(c)<1){ alert('Out of stock'); return; } c.pieces++; if(c.pieces>=p.packSize && p.packSize>1){ c.packs+=Math.floor(c.pieces/p.packSize); c.pieces=c.pieces%p.packSize; } } else { if(c.pieces>0) c.pieces--; else if(c.packs>0){ c.packs--; c.pieces=p.packSize-1; } } if(cartTotalPieces(c)===0) cart.splice(ci,1); renderCart(); }
+function removeFromCart(ci){ cart.splice(ci,1); renderCart(); }
+function clearCart(){ cart=[]; renderCart(); }
+function checkout(){ if(cart.length===0){alert('Cart empty');return;} let total=0; let items=[]; cart.forEach(c=>{ let p=products[c.index]; let qty=cartTotalPieces(c); let sub=qty*p.price; total+=sub; let desc=(c.packs>0?c.packs+' Pack(s)':'')+(c.packs>0&&c.pieces>0?' + ':'')+(c.pieces>0?c.pieces+' '+p.unit:''); items.push({name:p.name, qty:qty, packs:c.packs, pieces:c.pieces, desc:desc, price:p.price, sub:sub}); let rem=totalPieces(p)-qty; if(rem<0) rem=0; p.packs=Math.floor(rem/p.packSize); p.pieces=rem%p.packSize; }); let method=document.getElementById('payMethod').value; let cust=document.getElementById('customerName').value.trim()||'Walk-in'; let now=new Date(); let sale={date:now.toLocaleString(), timestamp:now.toISOString(), items:items, total:total, method:method, customer:cust}; sales.unshift(sale); if(method.includes('Credit')){ debts.unshift({name:cust, amount:total, note:items.map(i=>i.name+' - '+i.desc).join(', '), date:now.toLocaleDateString(), paid:false}); } saveAll(); cart=[]; document.getElementById('customerName').value=''; renderAll(); showReceipt(sale); }
+function showReceipt(sale){ lastReceipt=sale; document.getElementById('receiptTime').innerText=sale.date; let shopName=shop?shop.name:'My Shop'; let shopPhone=shop?(shop.phone||''):''; let lines=[]; lines.push(shopName); if(shopPhone) lines.push(shopPhone); lines.push('--------------------------------'); lines.push('Date: '+sale.date); lines.push('Customer: '+sale.customer); lines.push('Payment: '+sale.method); lines.push('--------------------------------'); sale.items.forEach(it=>{ lines.push(it.name+' ('+it.desc+') = N'+it.sub.toLocaleString()); }); lines.push('--------------------------------'); lines.push('TOTAL: N'+sale.total.toLocaleString()); lines.push(''); lines.push('Thank you for your patronage!'); lines.push('Please come again'); lines.push('Receipt No: '+(sale.timestamp||'').slice(0,19).replace(/[-T:]/g,'')); document.getElementById('receiptHtml').innerText=lines.join('\n'); drawReceiptCanvas(sale, shopName, shopPhone); document.getElementById('receiptModal').classList.remove('hidden'); }
+function drawReceiptCanvas(sale, shopName, shopPhone){ try{ let canvas=document.getElementById('receiptCanvas'); let ctx=canvas.getContext('2d'); canvas.height=380+sale.items.length*30; canvas.width=340; ctx.fillStyle='#fff'; ctx.fillRect(0,0,340,canvas.height); ctx.fillStyle='#000'; ctx.textAlign='center'; ctx.font='bold 20px sans-serif'; ctx.fillText(shopName.substring(0,25),170,30); ctx.font='12px sans-serif'; ctx.fillText(shopPhone||'',170,50); ctx.fillText('--------------------------------',170,68); ctx.textAlign='left'; ctx.fillText('Date: '+sale.date,15,88); ctx.fillText('Customer: '+sale.customer,15,106); ctx.fillText('Payment: '+sale.method,15,124); ctx.fillText('--------------------------------',170,142); ctx.font='bold 12px sans-serif'; ctx.fillText('ITEM',15,160); ctx.fillText('AMOUNT',240,160); ctx.font='12px sans-serif'; sale.items.forEach((it,idx)=>{ let y=182+idx*26; ctx.fillText((it.name.substring(0,18)+' '+(it.desc||'')).substring(0,28),15,y); ctx.fillText('N'+it.sub.toLocaleString(),240,y); }); let y=190+sale.items.length*26; ctx.fillText('--------------------------------',170,y); ctx.font='bold 16px sans-serif'; ctx.fillText('TOTAL: N'+sale.total.toLocaleString(),15,y+28); ctx.font='12px sans-serif'; ctx.textAlign='center'; ctx.fillText('Thank you!',170,y+55); }catch(e){} }
+function downloadReceipt(){ if(!lastReceipt) return; let a=document.createElement('a'); a.href=document.getElementById('receiptCanvas').toDataURL('image/png'); a.download='receipt-'+(lastReceipt.timestamp||'now').slice(0,10)+'-'+lastReceipt.total+'.png'; a.click(); }
+function shareReceiptImage(){ downloadReceipt(); alert('Receipt downloaded! Share from gallery to WhatsApp.'); }
+function closeReceipt(){ document.getElementById('receiptModal').classList.add('hidden'); document.getElementById('receiptModal').style.display='none'; setTimeout(function(){ document.getElementById('receiptModal').style.display=''; },100); }
+function renderSales(){ let today=new Date().toLocaleDateString(); let ts=sales.filter(s=>s.date.includes(today)); let tt=ts.reduce((a,s)=>a+s.total,0); document.getElementById('todayTotal').innerText='Today: ₦'+tt.toLocaleString()+' • '+ts.length+' sales'; document.getElementById('salesSummary').innerHTML='Today: <b>₦'+tt.toLocaleString()+'</b><br>Total: <b>₦'+sales.reduce((a,s)=>a+s.total,0).toLocaleString()+'</b> • '+sales.length+' sales'; let html=''; sales.slice(0,20).forEach((s,idx)=>{ html+='<div style="border-bottom:1px solid #333;padding:10px 0;cursor:pointer" onclick="showReceiptByIndex('+idx+')"><b>₦'+s.total.toLocaleString()+'</b> - '+s.method+' - '+s.customer+'<br><small>🕒 '+s.date+'<br>'+s.items.map(i=>i.name+' ('+i.desc+')').join(' | ')+'<br><span style="color:#25D366">Tap to view receipt →</span></small></div>'; }); document.getElementById('salesList').innerHTML=html||'No sales yet'; }
+function showReceiptByIndex(idx){ showReceipt(sales[idx]); }
+function clearSales(){ if(confirm('Clear all sales?')){ sales=[]; saveAll(); renderAll(); } }
+function shareReport(){ let today=new Date().toLocaleDateString(); let ts=sales.filter(s=>s.date.includes(today)); let total=ts.reduce((a,s)=>a+s.total,0); window.open('https://wa.me/?text='+encodeURIComponent('📊 '+(shop?shop.name:'My Shop')+' - Sales '+today+'\nTotal: ₦'+total+'\nSales: '+ts.length)); }
+function addDebt(){ let n=document.getElementById('debtName').value.trim(); let a=parseInt(document.getElementById('debtAmount').value); if(!n||!a){alert('Enter name and amount');return;} debts.unshift({name:n,amount:a,note:document.getElementById('debtNote').value,date:new Date().toLocaleDateString(),paid:false}); saveAll(); renderAll(); document.getElementById('debtName').value='';document.getElementById('debtAmount').value='';document.getElementById('debtNote').value=''; }
+function renderDebts(){ let total=debts.filter(d=>!d.paid).reduce((a,d)=>a+d.amount,0); document.getElementById('totalDebt').innerText='Total owing you: ₦'+total.toLocaleString(); let html=''; debts.forEach((d,i)=>{ html+='<div class="product"><div><b>'+d.name+'</b> '+(d.paid?'<span style="color:#25D366">PAID ✅</span>':'')+'<br><small>₦'+d.amount+' • '+(d.note||'')+' • '+d.date+'</small></div><div>'+(!d.paid?'<button class="btn-green" style="width:auto" onclick="markPaid('+i+')">Paid</button>':'')+' <button class="btn-red" style="width:auto" onclick="deleteDebt('+i+')">x</button></div></div>'; }); document.getElementById('debtList').innerHTML=html||'No debts'; }
+function markPaid(i){ debts[i].paid=true; saveAll(); renderAll(); }
+function deleteDebt(i){ debts.splice(i,1); saveAll(); renderAll(); }
+function renderAll(){ renderProducts(); renderCart(); renderSales(); renderDebts(); }
+
+// --- BARCODE SCANNER ---
+let html5QrCode = null;
+let scanMode = 'sell';
+let isScanning = false;
+function openScanner(mode){
+  scanMode = mode || 'sell';
+  document.getElementById('scanModal').classList.remove('hidden');
+  document.getElementById('scanHint').innerText = mode==='add' ? 'Scan to fill barcode for new item' : 'Scan to add item to cart';
+  startScanner();
+}
+function closeScanner(){
+  document.getElementById('scanModal').classList.add('hidden');
+  stopScanner();
+}
+async function startScanner(){
+  if(isScanning) return;
+  try{
+    html5QrCode = new Html5Qrcode("reader");
+    isScanning = true;
+    await html5QrCode.start(
+      { facingMode: "environment" },
+      { fps: 10, qrbox: { width: 250, height: 150 } },
+      (decodedText) => { onBarcodeScanned(decodedText); },
+      (err) => {}
+    );
+  }catch(e){
+    alert('Camera failed. Make sure you allowed camera and you are on HTTPS (Vercel link). On iPhone use Safari.');
+    closeScanner();
+  }
+}
+async function stopScanner(){
+  if(html5QrCode && isScanning){
+    try{ await html5QrCode.stop(); await html5QrCode.clear(); }catch(e){}
+    isScanning = false;
+    html5QrCode = null;
+  }
+}
+function onBarcodeScanned(code){
+  if(navigator.vibrate) navigator.vibrate(100);
+  stopScanner();
+  document.getElementById('scanModal').classList.add('hidden');
+  if(scanMode === 'add'){
+    document.getElementById('newBarcode').value = code;
+    showTab('products');
+    alert('Barcode scanned: ' + code + '\nNow fill name + price and tap Add Item.');
+    return;
+  }
+  let idx = products.findIndex(p => p.barcode && p.barcode == code);
+  if(idx >= 0){
+    addToCartPiece(idx);
+    alert('✅ Added: ' + products[idx].name);
+  } else {
+    if(confirm('Barcode ' + code + ' not found.\n\nAdd this as a new item now?')){
+      document.getElementById('newBarcode').value = code;
+      showTab('products');
+      document.getElementById('newName').focus();
+    }
+  }
+}
+
+// --- PWA INSTALL ---
+let deferredPrompt=null; let isIOS=/iPad|iPhone|iPod/.test(navigator.userAgent)&&!window.MSStream;
+function checkIfInstalled(){ let s=window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone===true; if(s){ document.getElementById('installBanner').classList.add('hidden'); document.getElementById('installBtn').innerText='✅ App Already Installed'; return; } setTimeout(function(){ document.getElementById('installBanner').classList.remove('hidden'); },2000); }
+window.addEventListener('beforeinstallprompt',(e)=>{ e.preventDefault(); deferredPrompt=e; document.getElementById('installBanner').classList.remove('hidden'); });
+function showInstallHelp(){ let ios=document.getElementById('iosHelp'); let and=document.getElementById('androidHelp'); if(isIOS){ ios.style.display=ios.style.display==='none'?'block':'none'; and.style.display='none'; } else { and.style.display=and.style.display==='none'?'block':'none'; ios.style.display='none'; } }
+async function installApp(){ if(isIOS){ showInstallHelp(); alert('iPhone: Tap Share ⬆️ → Add to Home Screen → Add'); return; } if(deferredPrompt){ deferredPrompt.prompt(); let c=await deferredPrompt.userChoice; if(c.outcome==='accepted') alert('Installed! Check home screen 🛒'); deferredPrompt=null; } else { showInstallHelp(); } }
+if('serviceWorker' in navigator){ window.addEventListener('load',()=>{ navigator.serviceWorker.register('/sw.js').catch(()=>{}); }); }
+init();
+</script>
+</body>
+</html>
