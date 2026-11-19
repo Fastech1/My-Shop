@@ -116,8 +116,4 @@ Layer	Technology
 5. Go to Items > Add your products
 6. Go to Sell > Start selling
 
----
-
-Want me to make this into a clean PDF / Word-style version you can download and send?
-
-Say *"make PDF"* and I'll generate it for you.
+--
